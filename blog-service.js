@@ -1,4 +1,6 @@
 const fs = require('fs')
+const { resolve } = require('path')
+const path = require('path')
 
 var posts = []
 var categories = []
@@ -54,9 +56,81 @@ function getCategories() {
   })
 }
 
+function addPost(postData) {
+  return new Promise((resolve, reject) => {
+    if (postData.published === undefined) {
+      postData.published = false
+    } else {
+      postData.published = true
+    }
+
+    postData.id = posts.length + 1
+    const currentDate = new Date()
+    const year = currentDate.getFullYear()
+    const month = String(currentDate.getMonth() + 1).padStart(2, '0')
+    const day = String(currentDate.getDate()).padStart(2, '0')
+    const formattedDate = `${year}-${month}-${day}`
+
+    postData.postDate = formattedDate
+
+    posts.push(postData)
+
+    resolve(postData)
+  })
+}
+
+function getPostsByCategory(category) {
+  return new Promise((resolve, reject) => {
+    let CPosts = []
+    for (let i = 0; i < posts.length; i++) {
+      if (posts[i].category == category) {
+        CPosts.push(posts[i])
+      }
+    }
+    if (CPosts.length === 0) {
+      reject('no results returned')
+    }
+    resolve(CPosts)
+  })
+}
+
+function getPostsByMinDate(minDateStr) {
+  return new Promise((resolve, reject) => {
+    let CPosts = []
+    for (let i = 0; i < posts.length; i++) {
+      if (new Date(posts[i].postDate) >= new Date(minDateStr)) {
+        CPosts.push(posts[i])
+      }
+    }
+    if (CPosts.length === 0) {
+      reject('no results returned')
+    }
+    resolve(CPosts)
+  })
+}
+
+function getPostById(id) {
+  return new Promise((resolve, reject) => {
+    let found = false
+    for (let i = 0; i < posts.length; i++) {
+      if (posts[i].id == id) {
+        found = true
+        resolve(posts[i])
+      }
+    }
+    if (!found) {
+      reject('no results returned')
+    }
+  })
+}
+
 module.exports = {
   initialize,
   getAllPosts,
   getPublishedPosts,
   getCategories,
+  addPost,
+  getPostsByCategory,
+  getPostsByMinDate,
+  getPostById,
 }

@@ -15,8 +15,20 @@
 const express = require('express')
 const path = require('path')
 const app = express()
+const multer = require('multer')
+const cloudinary = require('cloudinary').v2
+const streamifier = require('streamifier')
 const port = process.env.PORT || 8080
 var blog = require('./blog-service.js')
+
+cloudinary.config({
+  cloud_name: 'duoemhboy',
+  api_key: '739357112142456',
+  api_secret: 'hR8Eo_uiJOtiRpSDzfTSekozkRU',
+  secure: true,
+})
+
+const upload = multer()
 
 app.use(express.static('public'))
 
@@ -40,14 +52,85 @@ app.get('/blog', (req, res) => {
 })
 
 app.get('/posts', (req, res) => {
-  blog
-    .getAllPosts()
-    .then((posts) => {
-      res.json(posts)
+  const category = req.query.category
+  const minDateStr = req.query.minDate
+  let posts
+
+  if (category) {
+    blog
+      .getPostsByCategory(category)
+      .then((data) => {
+        res.json(data)
+      })
+      .catch((error) => {
+        res.json(error)
+      })
+  } else if (minDateStr) {
+    blog
+      .getPostsByMinDate(minDateStr)
+      .then((data) => {
+        res.json(data)
+      })
+      .catch((error) => {
+        res.json(error)
+      })
+  } else {
+    posts = blog
+      .getAllPosts()
+      .then((data) => {
+        res.json(data)
+      })
+      .catch((error) => {
+        res.json(error)
+      })
+  }
+})
+
+app.get('/posts/add', (req, res) => {
+  res.sendFile(path.join(__dirname, 'views', 'addPost.html'))
+})
+
+app.post('/posts/add', upload.single('featureImage'), (req, res) => {
+  if (req.file) {
+    let streamUpload = (req) => {
+      return new Promise((resolve, reject) => {
+        let stream = cloudinary.uploader.upload_stream((error, result) => {
+          if (result) {
+            resolve(result)
+          } else {
+            reject(error)
+          }
+        })
+        streamifier.createReadStream(req.file.buffer).pipe(stream)
+      })
+    }
+
+    async function upload(req) {
+      let result = await streamUpload(req)
+      console.log(result)
+      return result
+    }
+
+    upload(req).then((uploaded) => {
+      processPost(uploaded.url)
     })
-    .catch((err) => {
-      res.json({ message: err })
-    })
+  } else {
+    processPost('')
+  }
+
+  function processPost(imageUrl) {
+    req.body.featureImage = imageUrl
+    const postData = req.body
+    blog
+      .addPost(postData)
+      .then(() => {
+        res.redirect('/posts')
+      })
+      .catch((err) => {
+        console.error(err)
+        res.redirect('/posts')
+      })
+  }
 })
 
 app.get('/categories', (req, res) => {
@@ -58,6 +141,20 @@ app.get('/categories', (req, res) => {
     })
     .catch((err) => {
       res.json({ message: err })
+    })
+})
+
+app.get('/post/:id', (req, res) => {
+  const id = req.params.id
+  console.log(id)
+  blog
+    .getPostById(id)
+    .then((posts) => {
+      res.json(posts)
+    })
+    .catch((err) => {
+      console.error(err)
+      res.status(500).json('Post not found')
     })
 })
 
