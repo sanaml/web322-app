@@ -65,6 +65,7 @@ function addPost(postData) {
     }
 
     postData.id = posts.length + 1
+
     const currentDate = new Date()
     const year = currentDate.getFullYear()
     const month = String(currentDate.getMonth() + 1).padStart(2, '0')
@@ -72,8 +73,9 @@ function addPost(postData) {
     const formattedDate = `${year}-${month}-${day}`
 
     postData.postDate = formattedDate
+    postData.categories = postData.categories || [1] // add categories field if not defined in postData
 
-    posts.push(postData)
+    posts.unshift(postData)
 
     resolve(postData)
   })
@@ -123,6 +125,10 @@ function getPostById(id) {
     }
   })
 }
+async function getPublishedPostsByCategory(category) {
+  const allPosts = await getAllPosts()
+  return allPosts.filter((post) => post.published && post.category === category)
+}
 
 module.exports = {
   initialize,
@@ -133,4 +139,5 @@ module.exports = {
   getPostsByCategory,
   getPostsByMinDate,
   getPostById,
+  getPublishedPostsByCategory,
 }
