@@ -16,7 +16,7 @@
       href="https://bootswatch.com/3/superhero/bootstrap.min.css"
     />
 
-    <title>About</title>
+    <title>Sanam lakhotra's Blog</title>
   </head>
   <body>
     <nav class="navbar navbar-default navbar-fixed-top">
@@ -44,12 +44,12 @@
         <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
           <ul class="nav navbar-nav">
             <li><a href="/blog">Blog</a></li>
-            <li class="active"><a href="/about">About</a></li>
+            {{#navLink "/about"}}About{{/navLink}}
           </ul>
           <ul class="nav navbar-nav navbar-right">
-            <li><a href="/posts">Posts</a></li>
-            <li><a href="/categories">Categories</a></li>
-            <li><a href="/posts/add">Add Post</a></li>
+           {{#navLink "/posts"}}Posts{{/navLink}}
+           {{#navLink "/categories"}}Categories{{/navLink}}
+           {{#navLink "/posts/add"}}AddPost{{/navLink}}
           </ul>
         </div>
         <!-- /.navbar-collapse -->
@@ -57,28 +57,7 @@
       <!-- /.container-fluid -->
     </nav>
     <div class="container" style="padding-top: 60px;">
-      <div class="row">
-        <section class="main col-md-9">
-          <article>
-            <h2>About</h2>
-            <p>
-              My name is Sanam Lakhotra. My student Id is 151835212. Currently,
-              I'm enrolled in computer programming course in Seneca College.
-              Currently, I am working on Assignment 2 of Web Development. I had
-              completed my high school in India with First Class.
-            </p>
-          </article>
-        </section>
-        <aside class="col-md-3">
-          <h2>Future Plans</h2>
-          <p>
-            My future plan is to complete the Computer Programming course and
-            after this I want to masterize myself in Database field. My goal is
-            to work as a Dtaabase Engineer as I'm fond to learn how the system
-            works in the database.
-          </p>
-        </aside>
-      </div>
+      {{{body}}}
     </div>
 
     <!-- Latest compiled and minified jQuery 3.6.0 JavaScript -->
