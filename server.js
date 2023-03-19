@@ -6,7 +6,7 @@
  *
  * Name: sanam lakhotra Student ID: 151835212 Date:2023/02/05
  *
- * Cyclic Web App URL:https://itchy-boa-swimsuit.cyclic.app/about
+ * Cyclic Web App URL:https://itchy-boa-swimsuit.cyclic.app/blog
  *
  * GitHub Repository URL: https://github.com/sanaml/web322-app
  *
