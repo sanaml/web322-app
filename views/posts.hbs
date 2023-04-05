@@ -2,6 +2,9 @@
   <div class='col-md-12'>
     <h2>
       Posts
+      <a href='/posts/add' class='btn btn-success pull-right'>
+        Add Post
+      </a>
     </h2>
     <hr />
   </div>
@@ -47,6 +50,11 @@
           </td>
           <td>
             {{this.published}}
+          </td>
+          <td>
+            <a href="posts/delete/{{id}}" class='btn btn-danger'>
+              Remove
+            </a>
           </td>
         </tr>
       {{/each}}

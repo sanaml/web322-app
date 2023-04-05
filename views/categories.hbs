@@ -3,6 +3,9 @@
     <div class='col-md-12'>
       <h2>
         Categories
+        <a href='/categories/add' class='btn btn-success pull-right'>
+          Add Category
+        </a>
       </h2>
       <hr />
 
@@ -28,6 +31,11 @@
               <td>
                 <a href="/posts?category={{id}}">
                   {{category}}
+                </a>
+              </td>
+              <td>
+                <a href="categories/delete/{{id}}" class='btn btn-danger'>
+                  Remove
                 </a>
               </td>
             </tr>
