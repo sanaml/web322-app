@@ -1,5 +1,5 @@
 /*********************************************************************************
- * WEB322 – Assignment 02
+ * WEB322 – Assignment 05
  * I declare that this assignment is my own work in accordance with Seneca Academic Policy. No part
  * of this assignment has been copied manually or electronically from any other source
  * (including 3rd party web sites) or distributed to other students.
@@ -22,6 +22,18 @@ const cloudinary = require('cloudinary').v2
 const streamifier = require('streamifier')
 const port = process.env.PORT || 8082
 var blog = require('./blog-service.js')
+const {
+  initialize,
+  getAllPosts,
+  getCategories,
+  addPost,
+  getPostById,
+  getPublishedPostsByCategory,
+  getPostsByMinDate,
+  addCategory,
+  deleteCategoryById,
+  deletePostById,
+} = require('./blog-service.js')
 
 cloudinary.config({
   cloud_name: 'duoemhboy',
@@ -64,6 +76,7 @@ app.engine(
 )
 
 app.use(express.static('public'))
+app.use(express.urlencoded({ extended: true }))
 
 app.use(function (req, res, next) {
   let route = req.path.substring(1)
@@ -138,7 +151,9 @@ app.get('/posts', (req, res) => {
     blog
       .getPostsByCategory(category)
       .then((data) => {
-        res.render('posts', { posts: data })
+        data.length > 0
+          ? res.render('posts', { posts: data })
+          : res.render('posts', { message: 'No Results' })
       })
       .catch((error) => {
         res.render('posts', { message: 'no results' })
@@ -147,7 +162,9 @@ app.get('/posts', (req, res) => {
     blog
       .getPostsByMinDate(minDateStr)
       .then((data) => {
-        res.render('posts', { posts: data })
+        data.length > 0
+          ? res.render('posts', { posts: data })
+          : res.render('posts', { message: 'No Results' })
       })
       .catch((error) => {
         res.render('posts', { message: 'no results' })
@@ -156,7 +173,9 @@ app.get('/posts', (req, res) => {
     posts = blog
       .getAllPosts()
       .then((data) => {
-        res.render('posts', { posts: data })
+        data.length > 0
+          ? res.render('posts', { posts: data })
+          : res.render('posts', { message: 'No Results' })
       })
       .catch((error) => {
         res.render('posts', { message: 'no results' })
@@ -165,7 +184,13 @@ app.get('/posts', (req, res) => {
 })
 
 app.get('/posts/add', (req, res) => {
-  res.render('addPost')
+  getCategories()
+    .then((categories) => {
+      res.render('addPost', { categories: categories })
+    })
+    .catch(() => {
+      res.render('addPost', { categories: [] })
+    })
 })
 
 app.post('/posts/add', upload.single('featureImage'), async (req, res) => {
@@ -209,12 +234,30 @@ app.post('/posts/add', upload.single('featureImage'), async (req, res) => {
     res.redirect('/posts')
   }
 })
+app.get('/categories/add', (req, res) => {
+  res.render('addCategory')
+})
+app.post('/categories/add', (req, res) => {
+  let newCategory = {}
 
+  newCategory.category = req.body.category
+  if (req.body.category != '') {
+    addCategory(newCategory)
+      .then(() => {
+        res.redirect('/categories')
+      })
+      .catch(() => {
+        console.log('ERROR')
+      })
+  }
+})
 app.get('/categories', (req, res) => {
   blog
     .getCategories()
     .then((data) => {
-      res.render('categories', { categories: data })
+      data.length > 0
+        ? res.render('categories', { categories: data })
+        : res.render('categories', { message: 'No Results' })
     })
     .catch((err) => {
       res.render('categories', { message: 'no results' })
@@ -232,6 +275,24 @@ app.get('/post/:id', (req, res) => {
     .catch((err) => {
       console.error(err)
       res.status(500).json('Post not found')
+    })
+})
+app.get('/categories/delete/:id', (req, res) => {
+  deleteCategoryById(req.params.id)
+    .then(() => {
+      res.redirect('/categories')
+    })
+    .catch(() => {
+      console.log('"Unable to Remove Category / Category not found"')
+    })
+})
+app.get('/posts/delete/:id', (req, res) => {
+  deletePostById(req.params.id)
+    .then(() => {
+      res.redirect('/posts')
+    })
+    .catch(() => {
+      console.log('"Unable to Remove Category / Category not found"')
     })
 })
 app.use((req, res) => {
