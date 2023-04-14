@@ -4,7 +4,7 @@
  * of this assignment has been copied manually or electronically from any other source
  * (including 3rd party web sites) or distributed to other students.
  *
- * Name: sanam lakhotra Student ID: 151835212 Date:2023/02/05
+ * Name: Sanam lakhotra Student ID: 151835212 Date:2023/02/05
  *
  * Cyclic Web App URL:https://itchy-boa-swimsuit.cyclic.app/blog
  *
