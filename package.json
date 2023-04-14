@@ -20,5 +20,14 @@
     "sequelize": "^6.30.0",
     "streamifier": "^0.1.1",
     "strip-js": "^1.2.0"
-  }
+  },
+  "devDependencies": {},
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sanaml/web322-app.git"
+  },
+  "bugs": {
+    "url": "https://github.com/sanaml/web322-app/issues"
+  },
+  "homepage": "https://github.com/sanaml/web322-app#readme"
 }
