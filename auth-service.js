@@ -24,7 +24,7 @@ let user
 function initialize() {
   return new Promise(function (resolve, reject) {
     let db = mongoose.createConnection(
-      'mongodb+srv://lakhotrasanam01:<Sanam123>@cluster0.ve1lldh.mongodb.net/test',
+      'mongodb+srv://lakhotrasanam01:mnask2517@senecaweb.bokpb62.mongodb.net/?retryWrites=true&w=majority',
     )
     db.on('error', (err) => {
       reject(err) // reject the promise with the provided error

@@ -13,18 +13,15 @@
  ********************************************************************************/
 
 const express = require('express')
-const app = express()
-const exphbs = require('express-handlebars')
-const path = require('path')
 const multer = require('multer')
-const upload = multer()
 const cloudinary = require('cloudinary').v2
 const streamifier = require('streamifier')
-const authData = require('/auth-service.js')
-const clientsessions = require('client-sessions')
-var blog = require('./blog-service.js')
-const HTTP_PORT = process.env.PORT || 8082
-
+const exphbs = require('express-handlebars')
+const path = require('path')
+const stripJs = require('strip-js')
+const blogData = require('./blog-service.js')
+const authData = require('./auth-service.js')
+const clientSessions = require('client-sessions')
 const {
   initialize,
   getAllPosts,
@@ -37,19 +34,54 @@ const {
   deleteCategoryById,
   deletePostById,
 } = require('./blog-service.js')
+const { resolve } = require('path')
+const { redirect } = require('express/lib/response.js')
 
-cloudinary.config({
-  cloud_name: 'duoemhboy',
-  api_key: '739357112142456',
-  api_secret: 'hR8Eo_uiJOtiRpSDzfTSekozkRU',
-  secure: true,
+const app = express()
+
+app.use(express.static('public'))
+
+app.use(
+  clientSessions({
+    cookieName: 'session', // this is the object name that will be added to 'req'
+    secret: 'web322blogapplication', // this should be a long un-guessable string.
+    duration: 2 * 60 * 1000, // duration of the session in milliseconds (2 minutes)
+    activeDuration: 1000 * 60, // the session will be extended by this many ms each request (1 minute)
+  }),
+)
+
+app.use(function (req, res, next) {
+  res.locals.session = req.session
+  next()
 })
-const stripJs = require('strip-js')
+
+function ensureLogin(req, res, next) {
+  if (!req.session.user) {
+    res.redirect('/login')
+  } else {
+    next()
+  }
+}
+
+app.use(function (req, res, next) {
+  let route = req.path.substring(1)
+  app.locals.activeRoute =
+    '/' +
+    (isNaN(route.split('/')[1])
+      ? route.replace(/\/(?!.*)/, '')
+      : route.replace(/\/(.*)/, ''))
+  app.locals.viewingCategory = req.query.category
+  next()
+})
+
+app.use(express.urlencoded({ extended: true }))
+
 app.engine(
-  'hbs',
+  '.hbs',
   exphbs.engine({
     extname: '.hbs',
-    defaultLayout: 'main',
+    // Handlebars custom helper to create active navigation links
+    // Usage: {{#navLink "/about"}}About{{/navLink}}
     helpers: {
       navLink: function (url, options) {
         return (
@@ -62,6 +94,8 @@ app.engine(
           '</a></li>'
         )
       },
+      // Handlebars custom helper to check for equality
+      // Usage: {{#equal value1 value2}}...{{/equal}}
       equal: function (lvalue, rvalue, options) {
         if (arguments.length < 3)
           throw new Error('Handlebars Helper equal needs 2 parameters')
@@ -74,85 +108,67 @@ app.engine(
       safeHTML: function (context) {
         return stripJs(context)
       },
+      formatDate: function (dateObj) {
+        let year = dateObj.getFullYear()
+        let month = (dateObj.getMonth() + 1).toString()
+        let day = dateObj.getDate().toString()
+        return `${year}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`
+      },
     },
   }),
 )
+app.set('view engine', '.hbs')
 
-app.use(express.static('public'))
-app.use(express.urlencoded({ extended: true }))
-app.use(
-  clientSessions({
-    cookieName: 'session',
-    secret: 'web322application',
-    duration: 2 * 60 * 500,
-    activeDuration: 500 * 60,
-  }),
-)
-app.use(function (req, res, next) {
-  res.locals.session = req.session
-  next()
+// Configuring Cloudinary
+cloudinary.config({
+  cloud_name: 'duoemhboy',
+  api_key: '739357112142456',
+  api_secret: 'hR8Eo_uiJOtiRpSDzfTSekozkRU',
+  secure: true,
 })
-function ensureLogin(req, res, next) {
-  if (!req.session.user) {
-    res.redirect('/login')
-  } else {
-    next()
-  }
-}
-app.use(function (req, res, next) {
-  let route = req.path.substring(1)
-  app.locals.activeRoute =
-    '/' +
-    (isNaN(route.split('/')[1])
-      ? route.replace(/\/(?!.*)/, '')
-      : route.replace(/\/(.*)/, ''))
-  app.locals.viewingCategory = req.query.category
-  next()
-})
-app.set('view engine', 'hbs')
 
+const upload = multer()
+
+// Configuring the port
+const HTTP_PORT = process.env.PORT || 8080
+
+// ========== Home Page Route ==========
 app.get('/', (req, res) => {
-  res.redirect('./blog')
+  res.redirect('/blog')
 })
 
+// ========== About Page Route ==========
 app.get('/about', (req, res) => {
   res.render('about')
 })
 
+// ========== Blog Page Route ==========
 app.get('/blog', async (req, res) => {
   // Declare an object to store properties for the view
   let viewData = {}
-
   try {
-    // declare empty array to hold "post" objects
     let posts = []
-
     // if there's a "category" query, filter the returned posts by category
     if (req.query.category) {
       // Obtain the published "posts" by category
-      posts = await blog.getPublishedPostsByCategory(req.query.category)
+      posts = await blogData.getPublishedPostsByCategory(req.query.category)
     } else {
       // Obtain the published "posts"
-      posts = await blog.getPublishedPosts()
+      posts = await blogData.getPublishedPosts()
     }
-
     // sort the published posts by postDate
     posts.sort((a, b) => new Date(b.postDate) - new Date(a.postDate))
-
     // get the latest post from the front of the list (element 0)
     let post = posts[0]
-
     // store the "posts" and "post" data in the viewData object (to be passed to the view)
     viewData.posts = posts
     viewData.post = post
   } catch (err) {
     viewData.message = 'no results'
   }
-
   try {
     // Obtain the full list of "categories"
-    let categories = await blog.getCategories()
-
+    let categories = await blogData.getCategories()
     // store the "categories" data in the viewData object (to be passed to the view)
     viewData.categories = categories
   } catch (err) {
@@ -160,51 +176,62 @@ app.get('/blog', async (req, res) => {
   }
 
   // render the "blog" view with all of the data (viewData)
-  res.render('blog', { data: viewData })
+  if (viewData.posts.length > 0) {
+    res.render('blog', { data: viewData })
+  } else {
+    res.render('blog', {
+      data: viewData,
+      message: 'Please try another post / category',
+    })
+  }
 })
 
-app.get('/posts', ensurelogin, (req, res) => {
-  const category = req.query.category
-  const minDateStr = req.query.minDate
-  let posts
+// ========== Posts Page Route ==========
+app.get('/posts', ensureLogin, (req, res) => {
+  // Checking if a category was provided
+  if (req.query.category) {
+    getPublishedPostsByCategory(req.query.category)
+      .then((data) => {
+        data.length > 0
+          ? res.render('posts', { posts: data })
+          : res.render('posts', { message: 'No Results' })
+      })
+      // Error Handling
+      .catch((err) => {
+        res.render('posts', { message: 'no results' })
+      })
+  }
 
-  if (category) {
-    blog
-      .getPostsByCategory(category)
+  // Checking if a minimum date is provided
+  else if (req.query.minDate) {
+    getPostsByMinDate(req.query.minDate)
       .then((data) => {
         data.length > 0
           ? res.render('posts', { posts: data })
           : res.render('posts', { message: 'No Results' })
       })
-      .catch((error) => {
+      // Error Handling
+      .catch((err) => {
         res.render('posts', { message: 'no results' })
       })
-  } else if (minDateStr) {
-    blog
-      .getPostsByMinDate(minDateStr)
+  }
+
+  // Checking whether no specification queries were provided
+  else {
+    getAllPosts()
       .then((data) => {
         data.length > 0
           ? res.render('posts', { posts: data })
           : res.render('posts', { message: 'No Results' })
       })
-      .catch((error) => {
-        res.render('posts', { message: 'no results' })
-      })
-  } else {
-    posts = blog
-      .getAllPosts()
-      .then((data) => {
-        data.length > 0
-          ? res.render('posts', { posts: data })
-          : res.render('posts', { message: 'No Results' })
-      })
-      .catch((error) => {
+      // Error Handling
+      .catch((err) => {
         res.render('posts', { message: 'no results' })
       })
   }
 })
 
-app.get('/posts/add', ensurelogin, (req, res) => {
+app.get('/posts/add', ensureLogin, (req, res) => {
   getCategories()
     .then((categories) => {
       res.render('addPost', { categories: categories })
@@ -216,186 +243,160 @@ app.get('/posts/add', ensurelogin, (req, res) => {
 
 app.post(
   '/posts/add',
-  ensurelogoin,
+  ensureLogin,
   upload.single('featureImage'),
-  async (req, res) => {
-    try {
-      let featureImageUrl = ''
-      if (req.file) {
-        // upload image to cloudinary
-        const stream = cloudinary.uploader.upload_stream(
-          {},
-          (error, result) => {
-            if (result) {
-              featureImageUrl = result.secure_url
-              processPost()
-            } else {
-              console.error(error)
-              processPost()
-            }
-          },
-        )
+  (req, res) => {
+    // Configuring cloudinary image uploading
+    let streamUpload = (req) => {
+      return new Promise((resolve, reject) => {
+        let stream = cloudinary.uploader.upload_stream((error, result) => {
+          if (result) {
+            resolve(result)
+          } else {
+            reject(error)
+          }
+        })
+
         streamifier.createReadStream(req.file.buffer).pipe(stream)
-      } else {
-        processPost()
-      }
-
-      async function processPost() {
-        // create new post data
-        const postData = {
-          title: req.body.title,
-          content: req.body.content,
-          featureImage: featureImageUrl,
-        }
-
-        // add post to database
-        try {
-          await blog.addPost(postData)
-          res.redirect('/posts')
-        } catch (error) {
-          console.error(error)
-          res.redirect('/posts')
-        }
-      }
-    } catch (error) {
-      console.error(error)
-      res.redirect('/posts')
+      })
     }
+
+    async function upload(req) {
+      let result = await streamUpload(req)
+      return result
+    }
+
+    // Once the upload is completed, we store the other form data in the object
+    upload(req)
+      .then((uploaded) => {
+        req.body.featureImage = uploaded.url
+        let postObject = {}
+
+        postObject.body = req.body.body
+        postObject.title = req.body.title
+        postObject.postDate = new Date().toISOString().slice(0, 10)
+        postObject.category = req.body.category
+        postObject.featureImage = req.body.featureImage
+        postObject.published = req.body.published
+
+        if (postObject.title) {
+          addPost(postObject).then(() => {
+            res.redirect('/posts')
+          })
+        }
+      })
+      // Error Handling
+      .catch((err) => {
+        res.send(err)
+      })
   },
 )
-app.get('/categories/add', ennsurelogin, (req, res) => {
-  res.render('addCategory')
-})
-app.post('/categories/add', (req, res) => {
-  let newCategory = {}
 
-  newCategory.category = req.body.category
-  if (req.body.category != '') {
-    addCategory(newCategory)
-      .then(() => {
-        res.redirect('/categories')
-      })
-      .catch(() => {
-        console.log('ERROR')
-      })
-  }
+app.get('/post/:value', (req, res) => {
+  getPostById(req.params.value)
+    .then((data) => {
+      res.send(data)
+    })
+    // Error Handling
+    .catch((err) => {
+      res.send(err)
+    })
 })
-app.get('/categories', ensurelogin, (req, res) => {
-  blog
-    .getCategories()
+
+app.get('/categories', ensureLogin, (req, res) => {
+  getCategories()
     .then((data) => {
       data.length > 0
         ? res.render('categories', { categories: data })
         : res.render('categories', { message: 'No Results' })
     })
-    .catch((err) => {
+    // Error Handling
+    .catch(() => {
       res.render('categories', { message: 'no results' })
     })
 })
 
-app.get('/post/:id', ensurelogin, (req, res) => {
-  const id = req.params.id
-  console.log(id)
-  blog
-    .getPostById(id)
-    .then((posts) => {
-      res.json(posts)
-    })
-    .catch((err) => {
-      console.error(err)
-      res.status(500).json('Post not found')
-    })
+app.get('/categories/add', ensureLogin, (req, res) => {
+  res.render('addCategory')
 })
-app.get('/categories/delete/:id', ensurelogin, (req, res) => {
+
+app.post('/categories/add', ensureLogin, (req, res) => {
+  let catObject = {}
+  // Add it Category before redirecting to /categories
+  catObject.category = req.body.category
+  if (req.body.category != '') {
+    addCategory(catObject)
+      .then(() => {
+        res.redirect('/categories')
+      })
+      .catch(() => {
+        console.log('Some error occured')
+      })
+  }
+})
+
+app.get('/categories/delete/:id', ensureLogin, (req, res) => {
   deleteCategoryById(req.params.id)
     .then(() => {
       res.redirect('/categories')
     })
     .catch(() => {
-      console.log('"Unable to Remove Category / Category not found"')
+      console.log('Unable to remove category / Category not found')
     })
 })
-app.get('/posts/delete/:id', ensurelogin, (req, res) => {
+
+app.get('/posts/delete/:id', ensureLogin, (req, res) => {
   deletePostById(req.params.id)
     .then(() => {
       res.redirect('/posts')
     })
     .catch(() => {
-      console.log('"Unable to Remove Category / Category not found"')
+      console.log('Unable to remove category / Category not found')
     })
-})
-app.use((req, res) => {
-  res.status(404).render('404')
 })
 
-blog
-  .initialize()
-  .then(() => {
-    app.listen(port, () => {
-      console.log(`Server listening on port ${port}`)
-    })
-  })
-  .catch((err) => {
-    console.error('Server failed to start:', err)
-  })
-app.get('/blog/:id', ensurelogin, async (req, res) => {
-  // Declare an object to store properties for the view
+app.get('/blog/:id', ensureLogin, async (req, res) => {
   let viewData = {}
-
   try {
-    // declare empty array to hold "post" objects
     let posts = []
 
-    // if there's a "category" query, filter the returned posts by category
     if (req.query.category) {
-      // Obtain the published "posts" by category
       posts = await blogData.getPublishedPostsByCategory(req.query.category)
     } else {
-      // Obtain the published "posts"
       posts = await blogData.getPublishedPosts()
     }
 
-    // sort the published posts by postDate
     posts.sort((a, b) => new Date(b.postDate) - new Date(a.postDate))
 
-    // store the "posts" and "post" data in the viewData object (to be passed to the view)
     viewData.posts = posts
   } catch (err) {
     viewData.message = 'no results'
   }
-
   try {
-    // Obtain the post by "id"
     viewData.post = await blogData.getPostById(req.params.id)
   } catch (err) {
     viewData.message = 'no results'
   }
-
   try {
     // Obtain the full list of "categories"
     let categories = await blogData.getCategories()
-
     // store the "categories" data in the viewData object (to be passed to the view)
     viewData.categories = categories
   } catch (err) {
     viewData.categoriesMessage = 'no results'
   }
-
   // render the "blog" view with all of the data (viewData)
   res.render('blog', { data: viewData })
 })
 
-//  Get Login Page Route
 app.get('/login', (req, res) => {
   res.render('login')
 })
 
-//  Get Register Page Route
 app.get('/register', (req, res) => {
   res.render('register')
 })
 
-// = Post Login Page Route
 app.post('/login', (req, res) => {
   req.body.userAgent = req.get('User-Agent')
   authData
@@ -413,7 +414,6 @@ app.post('/login', (req, res) => {
     })
 })
 
-// Post Register Page Route
 app.post('/register', (req, res) => {
   authData
     .registerUser(req.body)
@@ -425,23 +425,19 @@ app.post('/register', (req, res) => {
     })
 })
 
-//  Logout Route
 app.get('/logout', (req, res) => {
   req.session.reset()
   res.redirect('/')
 })
 
-//  User History Route
 app.get('/userHistory', ensureLogin, (req, res) => {
   res.render('userHistory')
 })
 
-// HANDLE 404 REQUESTS
 app.use((req, res) => {
   res.status(404).render('404')
 })
 
-// add middleware for handling 404 errors
 blogData
   .initialize()
   .then(authData.initialize)
